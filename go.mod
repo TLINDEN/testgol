@@ -1,4 +1,4 @@
-module drawminimal
+module testgol
 
 go 1.22
 
