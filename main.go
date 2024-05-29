@@ -212,12 +212,6 @@ func (game *Game) UpdatePixels() {
 				col = 0x0
 			}
 
-			/*
-				if math.Mod(float64(x), float64(game.Cellsize)) == 0 ||
-					math.Mod(float64(y), float64(game.Cellsize)) == 0 {
-					col = 128
-				}
-			*/
 			if game.Gridlines {
 				if x%game.Cellsize == 0 || y%game.Cellsize == 0 {
 					col = 128
@@ -254,7 +248,7 @@ func main() {
 		TPG:       10,
 		Debug:     false,
 		Profile:   false,
-		GridLines: false,
+		Gridlines: false,
 	}
 
 	game.ScreenWidth = game.Width * game.Cellsize
