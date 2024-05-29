@@ -7,7 +7,6 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"os/exec"
 	"runtime/pprof"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -47,21 +46,22 @@ func NewGrid(width, height, density int) *Grid {
 
 // live console output of the grid
 func (grid *Grid) Dump() {
-	cmd := exec.Command("clear")
-	cmd.Stdout = os.Stdout
-	cmd.Run()
+	/*
+		cmd := exec.Command("clear")
+		cmd.Stdout = os.Stdout
+		cmd.Run()
 
-	for y := 0; y < grid.Height; y++ {
-		for x := 0; x < grid.Width; x++ {
-			if grid.Data[y][x] == 1 {
-				fmt.Print("XX")
-			} else {
-				fmt.Print("  ")
+		for y := 0; y < grid.Height; y++ {
+			for x := 0; x < grid.Width; x++ {
+				if grid.Data[y][x] == 1 {
+					fmt.Print("XX")
+				} else {
+					fmt.Print("  ")
+				}
 			}
+			fmt.Println()
 		}
-		fmt.Println()
-	}
-
+	*/
 	fmt.Printf("FPS: %0.2f\n", ebiten.ActualTPS())
 }
 
@@ -242,21 +242,12 @@ func (game *Game) Update() error {
 func (game *Game) ClearVertices() {
 	// FIXME: fails
 	for i := 0; i < len(game.Vertices); i++ {
-		game.Vertices[i].ColorR = float32(game.White.R)
-		game.Vertices[i].ColorG = float32(game.White.G)
-		game.Vertices[i].ColorB = float32(game.White.B)
-		game.Vertices[i].ColorA = 1
+		game.Vertices[i] = ebiten.Vertex{}
+		// game.Vertices[i].DstX = 0
+		// game.Vertices[i].DstY = 1
 	}
 
-	for i := 0; i < len(game.Indices); i++ {
-		game.Indices[i] = 0
-	}
-
-	// FIXME: this works but would re-allocate lots of memory!
-
-	// lenvertices := game.ScreenHeight * game.ScreenWidth
-	// game.Indices = make([]uint16, lenvertices+(lenvertices/2))
-	// game.Vertices = make([]ebiten.Vertex, lenvertices)
+	game.Indices = game.Indices[:len(game.Indices)]
 }
 
 // create the triangles needed for rendering. Actual rendering doesn't
@@ -336,7 +327,7 @@ func (game *Game) Draw(screen *ebiten.Image) {
 }
 
 func main() {
-	size := 100
+	size := 200
 
 	game := &Game{
 		Width:    size,
