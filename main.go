@@ -44,7 +44,7 @@ type Game struct {
 	Index                            int
 	Elapsed                          int64
 	TPG                              int64 // adjust game speed independently of TPS
-	Pause, Debug, Profile            bool
+	Pause, Debug, Profile, Gridlines bool
 	Pixels                           []byte
 	OffScreen                        *ebiten.Image
 }
@@ -212,12 +212,24 @@ func (game *Game) UpdatePixels() {
 				col = 0x0
 			}
 
+			/*
+				if math.Mod(float64(x), float64(game.Cellsize)) == 0 ||
+					math.Mod(float64(y), float64(game.Cellsize)) == 0 {
+					col = 128
+				}
+			*/
+			if game.Gridlines {
+				if x%game.Cellsize == 0 || y%game.Cellsize == 0 {
+					col = 128
+				}
+			}
+
 			idx = 4 * (x + y*game.ScreenWidth)
 
 			game.Pixels[idx] = col
 			game.Pixels[idx+1] = col
 			game.Pixels[idx+2] = col
-			game.Pixels[idx+3] = col
+			game.Pixels[idx+3] = 0xff
 
 			idx++
 		}
@@ -232,16 +244,17 @@ func (game *Game) Draw(screen *ebiten.Image) {
 }
 
 func main() {
-	size := 1000
+	size := 500
 
 	game := &Game{
-		Width:    size,
-		Height:   size,
-		Cellsize: 4,
-		Density:  8,
-		TPG:      10,
-		Debug:    false,
-		Profile:  false,
+		Width:     size,
+		Height:    size,
+		Cellsize:  4,
+		Density:   8,
+		TPG:       10,
+		Debug:     false,
+		Profile:   false,
+		GridLines: false,
 	}
 
 	game.ScreenWidth = game.Width * game.Cellsize
