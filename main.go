@@ -7,16 +7,18 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"os/exec"
 	"runtime/pprof"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 var (
-	blackImage    = ebiten.NewImage(3, 3)
-	blackSubImage = blackImage.SubImage(image.Rect(1, 1, 2, 2)).(*ebiten.Image)
+	whiteImage    = ebiten.NewImage(3, 3)
+	whiteSubImage = whiteImage.SubImage(image.Rect(1, 1, 2, 2)).(*ebiten.Image)
 )
 
 type Images struct {
@@ -46,22 +48,22 @@ func NewGrid(width, height, density int) *Grid {
 
 // live console output of the grid
 func (grid *Grid) Dump() {
-	/*
-		cmd := exec.Command("clear")
-		cmd.Stdout = os.Stdout
-		cmd.Run()
+	return
+	cmd := exec.Command("clear")
+	cmd.Stdout = os.Stdout
+	cmd.Run()
 
-		for y := 0; y < grid.Height; y++ {
-			for x := 0; x < grid.Width; x++ {
-				if grid.Data[y][x] == 1 {
-					fmt.Print("XX")
-				} else {
-					fmt.Print("  ")
-				}
+	for y := 0; y < grid.Height; y++ {
+		for x := 0; x < grid.Width; x++ {
+			if grid.Data[y][x] == 1 {
+				fmt.Print("XX")
+			} else {
+				fmt.Print("  ")
 			}
-			fmt.Println()
 		}
-	*/
+		fmt.Println()
+	}
+
 	fmt.Printf("FPS: %0.2f\n", ebiten.ActualTPS())
 }
 
@@ -136,11 +138,11 @@ func (game *Game) Init() {
 		}
 	}
 
-	blackSubImage.Fill(game.Black)
+	whiteImage.Fill(color.White)
 
-	lenvertices := game.ScreenHeight * game.ScreenWidth
-	game.Vertices = make([]ebiten.Vertex, lenvertices)
-	game.Indices = make([]uint16, lenvertices+(lenvertices/2))
+	cellsCount := game.Height * game.Width
+	game.Vertices = make([]ebiten.Vertex, 0, cellsCount*4)
+	game.Indices = make([]uint16, 0, cellsCount*6)
 }
 
 // count the living neighbors of a cell
@@ -198,10 +200,6 @@ func (game *Game) UpdateCells() {
 	// next grid index. we only have to, so we just xor it
 	next := game.Index ^ 1
 
-	// reset vertices
-	// FIXME: fails!
-	game.ClearVertices()
-
 	// calculate cell life state, this is the actual game of life
 	for y := 0; y < game.Height; y++ {
 		for x := 0; x < game.Width; x++ {
@@ -239,79 +237,64 @@ func (game *Game) Update() error {
 	return nil
 }
 
-func (game *Game) ClearVertices() {
-	// FIXME: fails
-	for i := 0; i < len(game.Vertices); i++ {
-		game.Vertices[i] = ebiten.Vertex{}
-		// game.Vertices[i].DstX = 0
-		// game.Vertices[i].DstY = 1
-	}
-
-	game.Indices = game.Indices[:len(game.Indices)]
-}
-
 // create the triangles needed for rendering. Actual rendering doesn't
 // happen here but in Draw()
 func (game *Game) UpdateTriangles() {
-	var base uint16 = 0
-	var index uint16 = 0
-
 	idx := 0
-
+	game.Vertices = game.Vertices[:0]
+	game.Indices = game.Indices[:0]
 	// iterate over every cell
 	for celly := 0; celly < game.Height; celly++ {
 		for cellx := 0; cellx < game.Width; cellx++ {
-
-			// if the cell is alife
-			if game.Grids[game.Index].Data[celly][cellx] == 1 {
-
-				/* iterate over the cell's corners:
-				0   1
-
-				2   3
-				*/
-				for i := 0; i < 2; i++ {
-					for j := 0; j < 2; j++ {
-
-						// calculate the corner position
-						x := (cellx * game.Cellsize) + (i * game.Cellsize) + 1
-						y := (celly * game.Cellsize) + (j * game.Cellsize) + 1
-
-						if i == 1 {
-							x -= 1
-						}
-						if j == 1 {
-							y -= 1
-						}
-
-						// setup the vertex
-						game.Vertices[idx].DstX = float32(x)
-						game.Vertices[idx].DstY = float32(y)
-						game.Vertices[idx].SrcX = 1
-						game.Vertices[idx].SrcY = 1
-						game.Vertices[idx].ColorR = float32(game.Black.R)
-						game.Vertices[idx].ColorG = float32(game.Black.G)
-						game.Vertices[idx].ColorB = float32(game.Black.B)
-						game.Vertices[idx].ColorA = 1
-
-						idx++
-					}
-				}
+			// if the cell is dead
+			if game.Grids[game.Index].Data[celly][cellx] == 0 {
+				continue
 			}
+			x := (cellx * game.Cellsize)
+			y := (celly * game.Cellsize)
+			game.Vertices = append(game.Vertices,
+				ebiten.Vertex{
+					DstX:   float32(x + 1),
+					DstY:   float32(y + 1),
+					SrcX:   1,
+					SrcY:   1,
+					ColorA: 1,
+				},
+				ebiten.Vertex{
+					DstX:   float32(x + game.Cellsize),
+					DstY:   float32(y + 1),
+					SrcX:   1,
+					SrcY:   1,
+					ColorA: 1,
+				},
+				ebiten.Vertex{
+					DstX:   float32(x + 1),
+					DstY:   float32(y + game.Cellsize),
+					SrcX:   1,
+					SrcY:   1,
+					ColorA: 1,
+				},
+				ebiten.Vertex{
+					DstX:   float32(x + game.Cellsize),
+					DstY:   float32(y + game.Cellsize),
+					SrcX:   1,
+					SrcY:   1,
+					ColorA: 1,
+				},
+			)
 
-			// indices for first triangle
-			game.Indices[index] = base
-			game.Indices[index+1] = base + 1
-			game.Indices[index+2] = base + 3
+			game.Indices = append(game.Indices,
+				// indices for first triangle
+				uint16(idx*4),
+				uint16(idx*4+1),
+				uint16(idx*4+2),
+				// for the second one
+				uint16(idx*4+1),
+				uint16(idx*4+2),
+				uint16(idx*4+3),
+			)
 
-			// for the second one
-			game.Indices[index+3] = base
-			game.Indices[index+4] = base + 2
-			game.Indices[index+5] = base + 3
-
-			index += 6 // 3 indicies per triangle
-
-			base += 4 // 4 vertices per cell
+			idx++
 		}
 	}
 }
@@ -323,11 +306,13 @@ func (game *Game) Draw(screen *ebiten.Image) {
 	screen.DrawImage(game.Cache, op)
 
 	triop := &ebiten.DrawTrianglesOptions{}
-	screen.DrawTriangles(game.Vertices, game.Indices, blackSubImage, triop)
+	screen.DrawTriangles(game.Vertices, game.Indices, whiteSubImage, triop)
+
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("FPS: %.2f", ebiten.ActualFPS()))
 }
 
 func main() {
-	size := 200
+	size := 800
 
 	game := &Game{
 		Width:    size,
